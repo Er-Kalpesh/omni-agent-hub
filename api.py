@@ -23,8 +23,8 @@ app = FastAPI(
 agent = OmniAgent()
 
 class ChatRequest(BaseModel):
-    prompt: str = Field(..., example="What is the stock price of GOOGL and calculate sqrt(144) * 5?")
-    model: str = Field(default=Config.DEFAULT_MODEL, example="gemini-2.5-flash")
+    prompt: str = Field(..., json_schema_extra={"example": "What is the stock price of GOOGL and calculate sqrt(144) * 5?"})
+    model: str = Field(default=Config.DEFAULT_MODEL, json_schema_extra={"example": "gemini-2.5-flash"})
     use_rag: bool = Field(default=True, description="Enable local document knowledge search")
     use_tools: bool = Field(default=True, description="Enable Gemini tool execution")
 

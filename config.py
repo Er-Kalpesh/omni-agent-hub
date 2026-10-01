@@ -22,6 +22,9 @@ class Config:
     CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "100"))
     MAX_RAG_RESULTS: int = int(os.getenv("MAX_RAG_RESULTS", "4"))
     
+    # Network / Server Settings
+    API_PORT: int = int(os.getenv("API_PORT", "8000"))
+    
     # Paths
     BASE_DIR: Path = Path(__file__).parent
     DATA_DIR: Path = BASE_DIR / "data_store"
