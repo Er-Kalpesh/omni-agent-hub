@@ -8,6 +8,10 @@ import streamlit as st
 from PIL import Image
 import os
 import io
+from dotenv import load_dotenv
+
+# Force reload .env
+load_dotenv(override=True)
 
 from config import Config
 from agent.core import OmniAgent
@@ -59,8 +63,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Initialize Session State
-if "agent" not in st.session_state:
+# Always initialize or refresh OmniAgent instance
+if "agent" not in st.session_state or not st.session_state.agent.is_configured():
     st.session_state.agent = OmniAgent()
 
 if "messages" not in st.session_state:
@@ -253,7 +257,7 @@ with tab3:
     with col_in:
         st.write("#### Tool Input Parameters")
         if tool_choice == "search_web_information":
-            q = st.text_input("Query:", "Gemini 2.5 Flash developer features")
+            q = st.text_input("Query:", "Gemini 3 Flash developer features")
             if st.button("Run Tool"):
                 res = search_web_information(q)
                 st.session_state.tool_res = res

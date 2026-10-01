@@ -5,7 +5,7 @@ and local RAG knowledge retrieval.
 """
 
 import os
-from typing import List, Dict, Any, Optional, Generator, Tuple
+from typing import List, Dict, Any, Optional, Tuple
 from google import genai
 from google.genai import types
 from PIL import Image
@@ -18,18 +18,25 @@ class OmniAgent:
     """Multimodal AI Agent orchestrator."""
 
     def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or Config.GEMINI_API_KEY
+        self.api_key = api_key or os.getenv("GEMINI_API_KEY") or Config.GEMINI_API_KEY
         self.rag_engine = LocalRAGEngine()
         self.client: Optional[genai.Client] = None
-        
-        if self.api_key:
+        self._init_client()
+
+    def _init_client(self):
+        """Initialize or re-initialize Gemini Client if API key is present."""
+        key = self.api_key or os.getenv("GEMINI_API_KEY") or Config.GEMINI_API_KEY
+        if key and not self.client:
             try:
-                self.client = genai.Client(api_key=self.api_key)
+                self.client = genai.Client(api_key=key)
+                self.api_key = key
             except Exception as err:
                 print(f"Failed to initialize Gemini Client: {err}")
 
     def is_configured(self) -> bool:
-        """Check if Gemini API is ready to use."""
+        """Check if Gemini API is ready to use, auto-reloading API key if added."""
+        if not self.client:
+            self._init_client()
         return self.client is not None
 
     def process_query(
@@ -49,6 +56,18 @@ class OmniAgent:
         rag_citations: List[Dict[str, Any]] = []
         augmented_prompt = prompt
 
+        # Ensure client is initialized
+        if not self.is_configured():
+            offline_msg = (
+                "⚠️ **Offline Demo Mode**: GEMINI_API_KEY is not configured in `.env`.\n\n"
+                f"**Question Processed**: {prompt}\n"
+            )
+            if self.rag_engine.chunks:
+                offline_msg += f"\n**Retrieved {len(self.rag_engine.chunks)} Document Chunks from Local RAG Engine**\n"
+            else:
+                offline_msg += "\nTo enable live multimodal responses and Gemini 3 Flash execution, add your free key to `.env`."
+            return offline_msg, tool_traces, rag_citations
+
         # Step 1: Query Local RAG Knowledge Base if active
         if use_rag and self.rag_engine.chunks:
             rag_results = self.rag_engine.query(prompt)
@@ -62,20 +81,6 @@ class OmniAgent:
                     f"{context_str}\n\n"
                     f"User Question: {prompt}"
                 )
-
-        # Fallback offline answer if API key missing
-        if not self.is_configured():
-            offline_msg = (
-                "⚠️ **Offline Demo Mode**: GEMINI_API_KEY is not configured in `.env`.\n\n"
-                f"**Question Processed**: {prompt}\n"
-            )
-            if rag_citations:
-                offline_msg += f"\n**Retrieved {len(rag_citations)} Document Chunks from Local RAG Engine**:\n"
-                for cite in rag_citations:
-                    offline_msg += f"- *{cite['source']} (Page {cite['page']})*: \"{cite['text'][:120]}...\"\n"
-            else:
-                offline_msg += "\nTo enable live multimodal responses and Gemini 2.5 Flash execution, add your free key to `.env`."
-            return offline_msg, tool_traces, rag_citations
 
         # Step 2: Build contents list (multimodal image + text)
         contents = []
