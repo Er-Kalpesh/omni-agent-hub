@@ -124,6 +124,13 @@ with st.sidebar:
             agent.rag_engine.clear()
             st.rerun()
 
+    st.markdown("---")
+    if st.button("🔄 Clear Chat History", type="secondary", use_container_width=True):
+        st.session_state.messages = [
+            {"role": "assistant", "content": "Hello! I am **OmniAgent**. How can I assist you today?"}
+        ]
+        st.rerun()
+
 # --- MAIN INTERACTIVE TABS ---
 st.markdown("<div class='main-header'>🤖 Omni-Agent Hub</div>", unsafe_allow_html=True)
 st.markdown("<div class='sub-header'>Multimodal AI Agent Platform featuring Function Calling, Document RAG & Tool Execution</div>", unsafe_allow_html=True)
@@ -160,29 +167,32 @@ with tab1:
         uploaded_img = st.file_uploader("Attach Image for Visual Analysis (Optional):", type=["jpg", "png", "jpeg"], key="chat_img")
         pil_image = Image.open(uploaded_img) if uploaded_img else None
         
-        if pil_image:
-            st.image(pil_image, caption="Preview of Attached Image", width=200)
+        if pil_image and not st.session_state.get("image_processed", False):
+            st.image(pil_image, caption="Preview of Attached Image (Will attach to next question)", width=200)
 
         # Chat Input Box
         if prompt := st.chat_input("Ask a question, upload a PDF in sidebar, or request calculations/search..."):
+            # Use image only if attached and not already processed for a previous question
+            attached_image_to_use = pil_image if not st.session_state.get("image_processed", False) else None
+
             # Add user message to history
             st.session_state.messages.append({
                 "role": "user",
                 "content": prompt,
-                "image": pil_image
+                "image": attached_image_to_use
             })
             
             with st.chat_message("user"):
                 st.markdown(prompt)
-                if pil_image:
-                    st.image(pil_image, width=200)
+                if attached_image_to_use:
+                    st.image(attached_image_to_use, width=200)
 
             # Generate Agent Response
             with st.chat_message("assistant"):
                 with st.spinner("OmniAgent is processing..."):
                     response_text, tool_traces, rag_citations = agent.process_query(
                         prompt=prompt,
-                        image=pil_image,
+                        image=attached_image_to_use,
                         use_rag=use_rag_toggle,
                         use_tools=use_tools_toggle,
                         model_name=model_choice
@@ -206,6 +216,11 @@ with tab1:
                 "traces": tool_traces,
                 "citations": rag_citations
             })
+
+            # Mark image as processed so subsequent text questions don't re-use it
+            if attached_image_to_use:
+                st.session_state["image_processed"] = True
+                st.rerun()
 
     with col_inspect:
         st.subheader("💡 Example Prompts")
